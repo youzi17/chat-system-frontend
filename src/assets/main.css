@@ -1,0 +1,70 @@
+@import './styles/variables.css';
+@import './styles/global.css';
+
+#app {
+  width: 100%;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  font-weight: normal;
+  box-sizing: border-box;
+  min-height: 100vh;
+  position: relative;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+* {
+  box-sizing: inherit;
+}
+
+/* 确保内容不会因为滚动条出现而被挤压 */
+body {
+  width: 100vw;
+  height: 100vh;
+  overflow: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* 响应式调整 */
+@media (max-width: 768px) {
+  #app {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+}
+
+a,
+.green {
+  text-decoration: none;
+  color: hsla(160, 100%, 37%, 1);
+  transition: 0.4s;
+  padding: 3px;
+}
+
+@media (hover: hover) {
+  a:hover {
+    background-color: hsla(160, 100%, 37%, 0.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  body {
+    height: 100vh;
+    margin: 0;
+  }
+
+  #app {
+    width: 100%;
+    height: 100%;
+    padding: 0;
+  }
+}

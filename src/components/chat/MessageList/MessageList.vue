@@ -7,7 +7,7 @@
           <AppIcon name="message-circle" />
         </div>
         <h3>开始对话</h3>
-        <p>选择一个角色开始聊天吧！</p>
+        <p>输入消息开始聊天吧</p>
       </div>
 
       <!-- 消息列表 -->
@@ -66,7 +66,7 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
   isLoading: false,
   showActions: true,
-  autoScroll: true
+  autoScroll: true,
 })
 
 const emit = defineEmits<{
@@ -78,13 +78,10 @@ const emit = defineEmits<{
 const roleStore = useRoleStore()
 const scrollContainer = ref<HTMLElement>()
 
-// 使用滚动组合式函数
 const { isAtBottom, scrollToBottom, autoScrollToBottom } = useScroll(() => scrollContainer.value)
 
-// 计算属性
 const currentRole = computed(() => roleStore.currentRole)
 
-// 监听消息变化，自动滚动到底部
 watch(
   () => props.messages.length,
   async () => {
@@ -93,10 +90,9 @@ watch(
       autoScrollToBottom()
     }
   },
-  { flush: 'post' }
+  { flush: 'post' },
 )
 
-// 监听加载状态变化
 watch(
   () => props.isLoading,
   async (isLoading) => {
@@ -104,10 +100,9 @@ watch(
       await nextTick()
       autoScrollToBottom()
     }
-  }
+  },
 )
 
-// 方法
 const handleCopyMessage = (message: ChatMessageType) => {
   emit('copy', message)
 }
@@ -126,15 +121,15 @@ const handleDeleteMessage = (message: ChatMessageType) => {
   position: relative;
   flex: 1;
   overflow-y: auto;
-  padding: 16px;
-  background: #f8f9fa;
+  padding: var(--space-md);
+  background: var(--color-bg-primary);
 }
 
 .message-list-content {
   min-height: 100%;
 }
 
-/* 空状态样式 */
+/* 空状态 */
 .empty-state {
   display: flex;
   flex-direction: column;
@@ -143,42 +138,42 @@ const handleDeleteMessage = (message: ChatMessageType) => {
   height: 100%;
   min-height: 300px;
   text-align: center;
-  color: #666;
 }
 
 .empty-icon {
   width: 64px;
   height: 64px;
-  margin-bottom: 16px;
-  color: #ccc;
+  margin-bottom: var(--space-md);
+  color: var(--color-text-muted);
 }
 
 .empty-state h3 {
-  margin: 0 0 8px 0;
+  margin: 0 0 var(--space-sm) 0;
   font-size: 20px;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .empty-state p {
   margin: 0;
   font-size: 14px;
-  color: #666;
+  color: var(--color-text-secondary);
 }
 
-/* 加载状态样式 */
+/* 加载状态 */
 .loading-message {
   display: flex;
   align-items: flex-start;
-  margin-bottom: 16px;
+  margin-bottom: var(--space-md);
 }
 
 .loading-avatar {
   width: 40px;
   height: 40px;
-  border-radius: 50%;
+  border-radius: var(--radius-full);
   overflow: hidden;
-  margin-right: 12px;
+  margin-right: var(--space-sm);
   flex-shrink: 0;
+  background: var(--color-bg-tertiary);
 }
 
 .loading-avatar img {
@@ -188,10 +183,11 @@ const handleDeleteMessage = (message: ChatMessageType) => {
 }
 
 .loading-content {
-  background: #f8f9fa;
-  padding: 12px 16px;
-  border-radius: 12px;
+  background: var(--color-bg-elevated);
+  padding: var(--space-sm) var(--space-md);
+  border-radius: var(--radius-md);
   min-width: 60px;
+  border: 1px solid var(--color-border);
 }
 
 .loading-dots {
@@ -203,7 +199,7 @@ const handleDeleteMessage = (message: ChatMessageType) => {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #ccc;
+  background: var(--color-text-muted);
   animation: loadingDots 1.4s infinite ease-in-out both;
 }
 
@@ -216,15 +212,11 @@ const handleDeleteMessage = (message: ChatMessageType) => {
 }
 
 @keyframes loadingDots {
-  0%, 80%, 100% {
-    transform: scale(0);
-  }
-  40% {
-    transform: scale(1);
-  }
+  0%, 80%, 100% { transform: scale(0); }
+  40% { transform: scale(1); }
 }
 
-/* 滚动到底部按钮 - 移至顶部 */
+/* 滚动到底部按钮 */
 .scroll-to-bottom-btn {
   position: absolute;
   top: 20px;
@@ -232,68 +224,44 @@ const handleDeleteMessage = (message: ChatMessageType) => {
   width: 40px;
   height: 40px;
   border: none;
-  border-radius: 50%;
-  background: #007bff;
+  border-radius: var(--radius-full);
+  background: var(--color-primary);
   color: white;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
-  transition: all 0.2s;
+  box-shadow: var(--shadow-glow);
+  transition: all var(--transition-fast);
   z-index: 10;
 }
 
 .scroll-to-bottom-btn:hover {
-  background: #0056b3;
   transform: translateY(-2px);
-  box-shadow: 0 6px 16px rgba(0, 123, 255, 0.4);
+  box-shadow: 0 6px 16px rgba(14, 165, 233, 0.4);
 }
 
-.scroll-to-bottom-btn:active {
-  transform: translateY(0);
-}
-
-/* 滚动条样式 */
-.message-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.message-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.message-list::-webkit-scrollbar-thumb {
-  background: #ccc;
-  border-radius: 3px;
-}
-
-.message-list::-webkit-scrollbar-thumb:hover {
-  background: #999;
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
   .message-list {
-    padding: 12px;
+    padding: var(--space-sm);
   }
-  
+
   .scroll-to-bottom-btn {
     width: 36px;
     height: 36px;
     top: 16px;
     right: 16px;
   }
-  
+
   .empty-state {
     min-height: 200px;
   }
-  
+
   .empty-icon {
     width: 48px;
     height: 48px;
   }
-  
+
   .empty-state h3 {
     font-size: 18px;
   }

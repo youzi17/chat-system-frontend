@@ -24,23 +24,41 @@ class HttpClient {
 
     try {
       const response = await this.fetchWithRetry(url, requestConfig)
-      const data = await response.json()
-
-      console.log('API Response:', { url, status: response.status, data })
+      const data = await this.parseResponseBody(response)
 
       if (!response.ok) {
-        throw new Error(data.message || `HTTP ${response.status}`)
+        const errorMessage = this.extractErrorMessage(data, response.status)
+        throw new Error(errorMessage)
       }
 
       // 根据后端返回的数据判断成功状态
       // 通常后端会返回success字段，但如果没有，根据HTTP状态码判断
-      const success = data.success !== undefined ? data.success : response.ok
+      const success =
+        typeof data === 'object' &&
+        data !== null &&
+        typeof (data as { success?: unknown }).success === 'boolean'
+          ? (data as { success: boolean }).success
+          : response.ok
+
+      const responseData =
+        typeof data === 'object' && data !== null && 'data' in data
+          ? (data as { data: T }).data
+          : (data as T)
+
+      const message =
+        typeof data === 'object' &&
+        data !== null &&
+        typeof (data as { message?: unknown }).message === 'string'
+          ? (data as { message: string }).message
+          : success
+            ? 'success'
+            : '未知错误'
 
       // 包装成 ApiResponse 格式
       return {
-        success: success,
-        data: data,
-        message: data.message || (success ? 'success' : '未知错误'),
+        success,
+        data: responseData,
+        message,
       }
     } catch (error) {
       console.error('API request failed:', error)
@@ -58,13 +76,21 @@ class HttpClient {
     const timeoutId = setTimeout(() => controller.abort(), config.timeout)
 
     try {
+      const isFormData = config.body instanceof FormData
+      let body: BodyInit | undefined
+      if (config.body instanceof FormData) {
+        body = config.body
+      } else if (config.body !== undefined) {
+        body = JSON.stringify(config.body)
+      }
       const response = await fetch(url, {
         method: config.method || 'GET',
         headers: {
-          'Content-Type': 'application/json',
+          // FormData 不设置 Content-Type，让浏览器自动设置 multipart/form-data
+          ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
           ...config.headers,
         },
-        body: config.body ? JSON.stringify(config.body) : undefined,
+        body,
         signal: controller.signal,
       })
 
@@ -87,6 +113,60 @@ class HttpClient {
     return new Promise((resolve) => setTimeout(resolve, ms))
   }
 
+  private async parseResponseBody(response: Response): Promise<unknown> {
+    const raw = await response.text()
+    if (!raw) return null
+
+    try {
+      return JSON.parse(raw)
+    } catch {
+      return raw
+    }
+  }
+
+  private extractErrorMessage(data: unknown, status: number): string {
+    if (typeof data === 'string' && data.trim()) {
+      return data
+    }
+
+    if (typeof data === 'object' && data !== null) {
+      const obj = data as {
+        message?: unknown
+        error?: unknown
+        errors?: unknown
+      }
+
+      if (typeof obj.message === 'string' && obj.message.trim()) {
+        return obj.message
+      }
+      if (Array.isArray(obj.message)) {
+        const messages = obj.message.filter((m): m is string => typeof m === 'string')
+        if (messages.length > 0) {
+          return messages.join('; ')
+        }
+      }
+
+      if (typeof obj.error === 'string' && obj.error.trim()) {
+        return obj.error
+      }
+      if (Array.isArray(obj.error)) {
+        const errors = obj.error.filter((m): m is string => typeof m === 'string')
+        if (errors.length > 0) {
+          return errors.join('; ')
+        }
+      }
+
+      if (Array.isArray(obj.errors)) {
+        const errors = obj.errors.filter((m): m is string => typeof m === 'string')
+        if (errors.length > 0) {
+          return errors.join('; ')
+        }
+      }
+    }
+
+    return `HTTP ${status}`
+  }
+
   // GET请求
   async get<T = unknown>(endpoint: string, config?: RequestConfig): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...config, method: 'GET' })
@@ -95,7 +175,7 @@ class HttpClient {
   // POST请求
   async post<T = unknown>(
     endpoint: string,
-    data?: Record<string, unknown>,
+    data?: Record<string, unknown> | FormData,
     config?: RequestConfig,
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...config, method: 'POST', body: data })
@@ -104,7 +184,7 @@ class HttpClient {
   // PUT请求
   async put<T = unknown>(
     endpoint: string,
-    data?: Record<string, unknown>,
+    data?: Record<string, unknown> | FormData,
     config?: RequestConfig,
   ): Promise<ApiResponse<T>> {
     return this.request<T>(endpoint, { ...config, method: 'PUT', body: data })

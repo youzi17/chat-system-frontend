@@ -1,117 +1,78 @@
-// src/stores/roles.ts
+// src/stores/roles.ts — 固定双角色 Store，常量驱动，不调用 API
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { Role } from '@/types/role'
+import type { FixedRole, RoleKey } from '@/types/role'
+import { FIXED_ROLES } from '@/types/role'
 import { useChatStore } from './chat'
 import { storage } from '@/utils/storage'
 import { STORAGE_KEYS } from '@/utils/constants'
-import { useRoleService } from '@/services/roleService'
 
-/**
- * 角色管理 Store
- * 负责：
- * - 加载角色列表（用户配置 + 默认）
- * - 管理当前选中角色
- * - 处理加载状态与错误
- */
 export const useRoleStore = defineStore('role', () => {
-  const roleService = useRoleService()
+  // 状态
+  const currentRole = ref<FixedRole | null>(null)
 
-  const state = ref<{
-    roles: Role[]
-    currentRole: Role | null
-    isLoading: boolean
-    error: string | null
-  }>({
-    roles: [],
-    currentRole: null,
-    isLoading: false,
-    error: null,
-  })
+  // 计算属性：固定角色列表
+  const roles = computed(() => FIXED_ROLES)
 
-  // 计算属性：暴露只读状态
-  const roles = computed(() => state.value.roles)
-  const currentRole = computed(() => state.value.currentRole)
-  const isLoading = computed(() => state.value.isLoading)
-  const error = computed(() => state.value.error)
+  // 当前角色的 key
+  const currentRoleKey = computed<RoleKey | null>(() => currentRole.value?.key ?? null)
 
   /**
-   * 初始化角色列表
-   * 在应用启动时调用一次
+   * 初始化角色
+   * 从 localStorage 恢复上次选中的角色
    */
-  const initializeRoles = async () => {
-    if (state.value.roles.length > 0) return
-
-    state.value.isLoading = true
-    state.value.error = null
-
-    try {
-      const roles = await roleService.getRoles()
-      state.value.roles = roles.length > 0 ? roles : [roleService.getDefaultRole()]
-
-      const saved = storage.get<Role>(STORAGE_KEYS.SELECTED_ROLE)
-      state.value.currentRole = saved || state.value.roles[0] || null
-    } catch (err) {
-      console.warn('加载角色失败，使用默认角色兜底', err)
-      const defaultRole = roleService.getDefaultRole()
-      state.value.roles = [defaultRole]
-      state.value.currentRole = defaultRole
-      state.value.error = '加载角色失败'
-    } finally {
-      state.value.isLoading = false
+  const initializeRoles = () => {
+    const savedKey = storage.get<RoleKey>(STORAGE_KEYS.SELECTED_ROLE)
+    if (savedKey) {
+      const found = FIXED_ROLES.find((r) => r.key === savedKey)
+      if (found) {
+        currentRole.value = found
+        return
+      }
     }
+    // 没有保存的角色，不自动选择（等用户在欢迎页选择）
+    currentRole.value = null
   }
 
   /**
-   * 选择一个角色
-   * 切换并跳转到对应对话
+   * 选择角色
+   * 切换角色并关联到对应会话
    */
-  const selectRole = (roleId: string) => {
-    const role = state.value.roles.find((r) => r.id === roleId)
+  const selectRole = (roleKey: RoleKey) => {
+    const role = FIXED_ROLES.find((r) => r.key === roleKey)
     if (!role) return
 
-    state.value.currentRole = role
-    storage.set(STORAGE_KEYS.SELECTED_ROLE, role)
+    currentRole.value = role
+    storage.set(STORAGE_KEYS.SELECTED_ROLE, roleKey)
 
+    // 切换到该角色的会话
     const chatStore = useChatStore()
-    const roleSessions = chatStore.sessions?.filter((s) => s.roleId === roleId) || []
+    const roleSessions = chatStore.sessions.filter((s) => s.roleKey === roleKey)
 
     if (roleSessions.length > 0 && roleSessions[0]) {
       chatStore.selectSession(roleSessions[0].id)
     } else {
-      chatStore.createSession(`${role.name}的对话`, roleId)
+      chatStore.createSession(`${role.name}的对话`, roleKey)
     }
   }
 
   /**
-   * 刷新角色列表
+   * 清除角色选择（回到欢迎页）
    */
-  const refreshRoles = async () => {
-    state.value.isLoading = true
-    state.value.error = null
-
-    try {
-      const roles = await roleService.getRoles()
-      state.value.roles = roles.length > 0 ? roles : [roleService.getDefaultRole()]
-    } catch (err) {
-      console.warn('刷新角色列表失败', err)
-      state.value.error = '刷新失败'
-    } finally {
-      state.value.isLoading = false
-    }
+  const clearRole = () => {
+    currentRole.value = null
+    storage.remove(STORAGE_KEYS.SELECTED_ROLE)
   }
 
-  // ✅ 导出状态和方法
   return {
     // 状态
     roles,
     currentRole,
-    isLoading,
-    error,
+    currentRoleKey,
 
     // 方法
     initializeRoles,
     selectRole,
-    refreshRoles,
+    clearRole,
   }
 })

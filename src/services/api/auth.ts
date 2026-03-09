@@ -1,7 +1,6 @@
 // src/services/api/auth.ts
 import type { User } from '../types/user'
 import { httpClient } from './base'
-import type { ApiResponse } from '../types/api'
 
 // 请求类型
 export interface RegisterRequest {
@@ -20,7 +19,18 @@ export interface LoginRequest {
 // 后端返回结构
 export interface LoginResponse {
   token: string
-  student: User
+  user: User
+  message?: string
+}
+
+export interface RegisterResponse {
+  token: string
+  user: User
+}
+
+type ServiceResult<T> = {
+  success: boolean
+  data?: T
   message?: string
 }
 
@@ -29,14 +39,15 @@ export const authService = {
   /**
    * 注册用户
    */
-  async register(
-    data: RegisterRequest,
-  ): Promise<{ success: boolean; data?: any; message?: string }> {
+  async register(data: RegisterRequest): Promise<ServiceResult<RegisterResponse>> {
     try {
-      const response = await httpClient.post('/auth/register', data as Record<string, unknown>)
+      const response = await httpClient.post<RegisterResponse>(
+        '/auth/register',
+        data as Record<string, unknown>,
+      )
 
       return {
-        success: true,
+        success: response.success,
         data: response.data,
         message: response.message,
       }
@@ -51,9 +62,7 @@ export const authService = {
   /**
    * 用户登录
    */
-  async login(
-    data: LoginRequest,
-  ): Promise<{ success: boolean; data?: LoginResponse; message?: string }> {
+  async login(data: LoginRequest): Promise<ServiceResult<LoginResponse>> {
     try {
       const response = await httpClient.post<LoginResponse>(
         '/auth/login',
@@ -61,7 +70,7 @@ export const authService = {
       )
 
       return {
-        success: true,
+        success: response.success,
         data: response.data,
         message: response.message,
       }
@@ -93,7 +102,7 @@ export const authService = {
       })
 
       return {
-        success: true,
+        success: response.success,
         data: response.data,
         message: response.message,
       }

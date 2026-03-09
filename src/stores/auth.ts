@@ -16,6 +16,50 @@ export const useAuthStore = defineStore('auth', () => {
   const isAuthenticated = computed(() => !!token.value && !!user.value)
   const currentUser = computed(() => user.value)
 
+  const toRecord = (value: unknown): Record<string, unknown> | null => {
+    return typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : null
+  }
+
+  const getObjectKeys = (value: unknown): string => {
+    const record = toRecord(value)
+    if (!record) return 'none'
+    const keys = Object.keys(record)
+    return keys.length > 0 ? keys.join(', ') : 'none'
+  }
+
+  const extractAuthPayload = (
+    payload: unknown,
+  ): { authToken: string; authUser: User } | null => {
+    const root = toRecord(payload)
+    if (!root) return null
+
+    const candidates = [root, toRecord(root.data), toRecord(root.result)].filter(
+      (item): item is Record<string, unknown> => item !== null,
+    )
+
+    for (const candidate of candidates) {
+      const tokenCandidate =
+        candidate.token ?? candidate.accessToken ?? candidate.jwt ?? candidate.authToken
+      const userCandidate = candidate.user ?? candidate.profile ?? candidate.currentUser
+
+      if (typeof tokenCandidate === 'string' && toRecord(userCandidate)) {
+        return {
+          authToken: tokenCandidate,
+          authUser: userCandidate as User,
+        }
+      }
+    }
+
+    return null
+  }
+
+  const setAuthState = (authToken: string, authUser: User) => {
+    token.value = authToken
+    user.value = authUser
+    storage.set(STORAGE_KEYS.AUTH_TOKEN, token.value)
+    storage.set(STORAGE_KEYS.USER_INFO, user.value)
+  }
+
   // 从本地存储初始化状态
   const initAuth = () => {
     try {
@@ -38,35 +82,18 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      console.log('登录API请求数据:', credentials)
       const response = await authService.login(credentials)
-      console.log('登录API响应:', response)
 
       // 检查登录是否成功
       if (response.success && response.data) {
-        const loginData = response.data
-
-        // 检查是否有token字段
-        if (loginData.token) {
-          token.value = loginData.token
-
-          // 根据实际后端响应结构设置用户信息
-          // 检查是否有student字段
-          if (loginData.student) {
-            user.value = loginData.student
-          } else {
-            // 如果没有明确的用户信息，创建一个基本用户对象
-            user.value = { username: credentials.username } as User
-          }
-
-          // 保存到本地存储
-          storage.set(STORAGE_KEYS.AUTH_TOKEN, token.value)
-          storage.set(STORAGE_KEYS.USER_INFO, user.value)
-
-          console.log('登录成功，token已保存')
+        const authPayload = extractAuthPayload(response.data)
+        if (authPayload) {
+          setAuthState(authPayload.authToken, authPayload.authUser)
           return true
         } else {
-          const errorMsg = '登录响应缺少token字段'
+          const errorMsg =
+            response.message ||
+            `登录响应缺少必要字段(token/user)，实际字段: ${getObjectKeys(response.data)}`
           error.value = errorMsg
           console.error(errorMsg)
           return false
@@ -93,14 +120,23 @@ export const useAuthStore = defineStore('auth', () => {
     error.value = null
 
     try {
-      console.log('注册API请求数据:', userData)
       const response = await authService.register(userData)
-      console.log('注册API响应:', response)
 
       // 根据后端响应判断注册是否成功
-      if (response.success) {
-        console.log('注册成功，准备自动登录')
+      if (response.success && response.data) {
+        const authPayload = extractAuthPayload(response.data)
+        if (authPayload) {
+          setAuthState(authPayload.authToken, authPayload.authUser)
+          return true
+        }
+
         // 注册成功后自动登录
+        return await login({
+          username: userData.username,
+          password: userData.password,
+        })
+      } else if (response.success) {
+        // 兼容仅返回成功状态但不返回数据的后端
         return await login({
           username: userData.username,
           password: userData.password,
@@ -135,27 +171,18 @@ export const useAuthStore = defineStore('auth', () => {
   // 验证令牌有效性
   const validateToken = async () => {
     if (!token.value) {
-      console.log('未检测到登录状态，无需验证')
       return false
     }
 
     isLoading.value = true
 
     try {
-      console.log('开始验证令牌有效性...')
       const response = await authService.getProfile(token.value)
-      console.log('令牌验证响应:', response)
 
       if (response.success && response.data) {
-        // 如果有message字段但success为true，可能是服务器返回的提示信息
-        if (response.message) {
-          console.log('令牌验证成功，但服务器返回提示:', response.message)
-        }
-
         // 更新用户信息
         user.value = response.data
         storage.set(STORAGE_KEYS.USER_INFO, user.value)
-        console.log('令牌验证成功，用户信息已更新')
         return true
       } else {
         // 验证失败，记录错误信息并登出

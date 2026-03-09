@@ -3,39 +3,14 @@
     <div class="input-container">
       <!-- 工具栏 -->
       <div class="input-toolbar">
-        <button
-          class="toolbar-btn"
-          @click="toggleEmojiPicker"
-          title="表情"
-        >
+        <button class="toolbar-btn" @click="toggleEmojiPicker" title="表情">
           <AppIcon name="smile" />
         </button>
-        
-        <button
-          class="toolbar-btn"
-          @click="triggerFileUpload"
-          title="上传文件"
-        >
+        <button class="toolbar-btn" @click="triggerFileUpload" title="上传文件">
           <AppIcon name="paperclip" />
         </button>
-        
-        <button
-          class="toolbar-btn"
-          @click="toggleVoiceInput"
-          :class="{ active: isVoiceInputActive }"
-          title="语音输入"
-        >
-          <AppIcon name="mic" />
-        </button>
-        
         <div class="toolbar-divider"></div>
-        
-        <button
-          class="toolbar-btn"
-          @click="clearInput"
-          :disabled="!inputValue"
-          title="清空"
-        >
+        <button class="toolbar-btn" @click="clearInput" :disabled="!inputValue" title="清空">
           <AppIcon name="x" />
         </button>
       </div>
@@ -53,7 +28,7 @@
           class="message-input"
           rows="1"
         ></textarea>
-        
+
         <!-- 发送按钮 -->
         <button
           class="send-btn"
@@ -96,19 +71,6 @@
       @change="handleFileUpload"
       style="display: none"
     />
-
-    <!-- 语音输入状态 -->
-    <div v-if="isVoiceInputActive" class="voice-input-status">
-      <div class="voice-animation">
-        <div class="voice-wave"></div>
-        <div class="voice-wave"></div>
-        <div class="voice-wave"></div>
-      </div>
-      <p>正在录音...</p>
-      <button class="stop-voice-btn" @click="stopVoiceInput">
-        停止录音
-      </button>
-    </div>
   </div>
 </template>
 
@@ -126,17 +88,16 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  placeholder: '输入消息...',
+  placeholder: '说点什么吧...',
   maxLength: 2000,
   isLoading: false,
   showCharCount: true,
-  autoFocus: false
+  autoFocus: false,
 })
 
 const emit = defineEmits<{
   send: [message: string]
   fileUpload: [files: FileList]
-  voiceInput: [audio: Blob]
 }>()
 
 // 响应式数据
@@ -144,7 +105,6 @@ const inputValue = ref('')
 const textareaRef = ref<HTMLTextAreaElement>()
 const fileInputRef = ref<HTMLInputElement>()
 const showEmojiPicker = ref(false)
-const isVoiceInputActive = ref(false)
 
 // 表情列表
 const emojis = [
@@ -152,16 +112,6 @@ const emojis = [
   '😊', '😇', '🙂', '🙃', '😉', '😌', '😍', '🥰',
   '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜',
   '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏',
-  '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣',
-  '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠',
-  '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨',
-  '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥',
-  '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧',
-  '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐',
-  '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕', '🤑',
-  '🤠', '😈', '👿', '👹', '👺', '🤡', '💩', '👻',
-  '💀', '☠️', '👽', '👾', '🤖', '🎃', '😺', '😸',
-  '😹', '😻', '😼', '😽', '🙀', '😿', '😾'
 ]
 
 // 计算属性
@@ -174,7 +124,7 @@ const adjustTextareaHeight = () => {
   if (textareaRef.value) {
     textareaRef.value.style.height = 'auto'
     const scrollHeight = textareaRef.value.scrollHeight
-    const maxHeight = 120 // 最大高度
+    const maxHeight = 120
     textareaRef.value.style.height = Math.min(scrollHeight, maxHeight) + 'px'
   }
 }
@@ -184,21 +134,22 @@ const handleInput = debounce(() => {
 }, 100)
 
 const handleKeydown = (event: KeyboardEvent) => {
-  // Ctrl+Enter 或 Cmd+Enter 发送消息
   if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
     event.preventDefault()
     sendMessage()
     return
   }
 
-  // Escape 关闭表情选择器
   if (event.key === 'Escape') {
     showEmojiPicker.value = false
     return
   }
 
-  // 字符长度限制
-  if (inputValue.value.length >= props.maxLength && event.key !== 'Backspace' && event.key !== 'Delete') {
+  if (
+    inputValue.value.length >= props.maxLength &&
+    event.key !== 'Backspace' &&
+    event.key !== 'Delete'
+  ) {
     event.preventDefault()
   }
 }
@@ -225,7 +176,6 @@ const handlePaste = (event: ClipboardEvent) => {
 
 const sendMessage = () => {
   if (!canSend.value) return
-
   const message = inputValue.value.trim()
   emit('send', message)
   inputValue.value = ''
@@ -248,7 +198,7 @@ const insertEmoji = (emoji: string) => {
     const end = textareaRef.value.selectionEnd
     const text = inputValue.value
     inputValue.value = text.substring(0, start) + emoji + text.substring(end)
-    
+
     nextTick(() => {
       textareaRef.value?.focus()
       textareaRef.value?.setSelectionRange(start + emoji.length, start + emoji.length)
@@ -265,28 +215,8 @@ const handleFileUpload = (event: Event) => {
   const target = event.target as HTMLInputElement
   if (target.files && target.files.length > 0) {
     emit('fileUpload', target.files)
-    target.value = '' // 清空input
+    target.value = ''
   }
-}
-
-const toggleVoiceInput = () => {
-  if (isVoiceInputActive.value) {
-    stopVoiceInput()
-  } else {
-    startVoiceInput()
-  }
-}
-
-const startVoiceInput = () => {
-  // 这里需要实现语音输入功能
-  // 可以使用 Web Speech API 或其他语音识别服务
-  isVoiceInputActive.value = true
-  console.log('开始语音输入')
-}
-
-const stopVoiceInput = () => {
-  isVoiceInputActive.value = false
-  console.log('停止语音输入')
 }
 
 // 点击外部关闭表情选择器
@@ -312,70 +242,74 @@ onUnmounted(() => {
 <style scoped>
 .input-area {
   position: relative;
-  background: white;
-  border-top: 1px solid #e9ecef;
+  background: var(--color-bg-secondary);
+  border-top: 1px solid var(--color-border);
 }
 
 .input-container {
-  padding: 16px;
+  padding: var(--space-lg);
 }
 
 .input-toolbar {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
+  gap: var(--space-sm);
+  margin-bottom: var(--space-md);
 }
 
 .toolbar-btn {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
-  color: #666;
+  color: var(--color-text-tertiary);
   cursor: pointer;
-  border-radius: 6px;
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
 }
 
 .toolbar-btn:hover {
-  background: #f8f9fa;
-  color: #333;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  transform: scale(1.05);
 }
 
 .toolbar-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
 }
 
 .toolbar-btn.active {
-  background: #007bff;
+  background: var(--color-primary);
   color: white;
 }
 
 .toolbar-divider {
   width: 1px;
   height: 20px;
-  background: #e9ecef;
+  background: var(--color-border);
   margin: 0 4px;
 }
 
 .input-wrapper {
   display: flex;
   align-items: flex-end;
-  gap: 12px;
-  background: #f8f9fa;
-  border-radius: 12px;
-  padding: 12px;
-  border: 2px solid transparent;
-  transition: border-color 0.2s;
+  gap: var(--space-sm);
+  background: var(--color-bg-tertiary);
+  border-radius: var(--radius-lg);
+  padding: var(--space-md) var(--space-md);
+  border: 1.5px solid var(--color-border);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .input-wrapper:focus-within {
-  border-color: #007bff;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(124, 156, 191, 0.15), var(--shadow-md);
+  background: var(--color-bg-elevated);
 }
 
 .message-input {
@@ -384,20 +318,20 @@ onUnmounted(() => {
   background: transparent;
   resize: none;
   outline: none;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
-  min-height: 20px;
-  max-height: 120px;
+  font-size: 15px;
+  line-height: 1.7;
+  color: var(--color-text-primary);
+  min-height: 24px;
+  max-height: 140px;
   font-family: inherit;
 }
 
 .message-input::placeholder {
-  color: #999;
+  color: var(--color-text-muted);
 }
 
 .message-input:disabled {
-  opacity: 0.6;
+  opacity: 0.5;
   cursor: not-allowed;
 }
 
@@ -405,23 +339,26 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
+  width: 40px;
+  height: 40px;
   border: none;
-  background: #007bff;
+  background: var(--color-primary-gradient);
   color: white;
   cursor: pointer;
-  border-radius: 8px;
-  transition: all 0.2s;
+  border-radius: var(--radius-md);
+  transition: all var(--transition-base);
   flex-shrink: 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .send-btn:hover:not(:disabled) {
-  background: #0056b3;
+  transform: scale(1.08);
+  box-shadow: var(--shadow-glow);
 }
 
 .send-btn:disabled {
-  background: #ccc;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-muted);
   cursor: not-allowed;
 }
 
@@ -442,30 +379,32 @@ onUnmounted(() => {
 .char-count {
   text-align: right;
   font-size: 12px;
-  color: #999;
-  margin-top: 8px;
+  color: var(--color-text-muted);
+  margin-top: var(--space-xs);
 }
 
-/* 表情选择器 */
+/* 表情选择器 — 增强毛玻璃效果 */
 .emoji-picker {
   position: absolute;
   bottom: 100%;
-  left: 16px;
-  right: 16px;
-  background: white;
-  border: 1px solid #e9ecef;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  left: var(--space-md);
+  right: var(--space-md);
+  background: rgba(255, 255, 255, 0.85);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1.5px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
   z-index: 1000;
-  margin-bottom: 8px;
+  margin-bottom: var(--space-sm);
 }
 
 .emoji-grid {
   display: grid;
   grid-template-columns: repeat(8, 1fr);
-  gap: 4px;
-  padding: 12px;
-  max-height: 200px;
+  gap: 6px;
+  padding: var(--space-md);
+  max-height: 220px;
   overflow-y: auto;
 }
 
@@ -473,98 +412,28 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border: none;
   background: transparent;
   cursor: pointer;
-  border-radius: 6px;
-  font-size: 18px;
-  transition: background-color 0.2s;
+  border-radius: var(--radius-md);
+  font-size: 20px;
+  transition: all var(--transition-base);
 }
 
 .emoji-btn:hover {
-  background: #f8f9fa;
+  background: var(--color-bg-tertiary);
+  transform: scale(1.15);
 }
 
-/* 语音输入状态 */
-.voice-input-status {
-  position: absolute;
-  bottom: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  background: #007bff;
-  color: white;
-  padding: 16px 24px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 8px;
-  z-index: 1000;
-}
-
-.voice-animation {
-  display: flex;
-  gap: 2px;
-}
-
-.voice-wave {
-  width: 4px;
-  height: 20px;
-  background: white;
-  border-radius: 2px;
-  animation: voiceWave 1s infinite ease-in-out;
-}
-
-.voice-wave:nth-child(2) {
-  animation-delay: 0.1s;
-}
-
-.voice-wave:nth-child(3) {
-  animation-delay: 0.2s;
-}
-
-@keyframes voiceWave {
-  0%, 100% {
-    height: 20px;
-  }
-  50% {
-    height: 8px;
-  }
-}
-
-.stop-voice-btn {
-  background: rgba(255, 255, 255, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: white;
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 12px;
-  transition: background-color 0.2s;
-}
-
-.stop-voice-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
-}
-
-/* 响应式设计 */
 @media (max-width: 768px) {
   .input-container {
-    padding: 12px;
+    padding: var(--space-sm);
   }
-  
+
   .emoji-grid {
     grid-template-columns: repeat(6, 1fr);
-  }
-  
-  .voice-input-status {
-    left: 16px;
-    right: 16px;
-    transform: none;
-    flex-direction: column;
-    text-align: center;
   }
 }
 </style>

@@ -71,27 +71,33 @@ const emit = defineEmits<{
 const roleStore = useRoleStore()
 const avatarError = ref(false)
 
-// 计算属性
 const currentRole = computed(() => roleStore.currentRole)
-//计算属性，根据消息的角色，显示不同的头像
+
 const avatarUrl = computed(() => {
   if (avatarError.value) {
     return '/role-avatars/default-avatar.png'
   }
-
   if (props.message.role === 'user') {
     return '/role-avatars/user-avatar.png'
   }
-
   return props.message.avatar || currentRole.value?.avatar || '/role-avatars/default-avatar.png'
 })
 
-const isLiked = ref(false) // 这里可以从store中获取
-//格式化消息，将消息中的Markdown格式化成HTML格式
-// 方法
+const isLiked = ref(false)
+
+const escapeHtml = (input: string): string => {
+  return input
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+}
+
 const formatMessage = (content: string): string => {
-  // 简单的Markdown渲染
-  return content
+  // 先转义用户/模型返回文本，再执行受控 markdown 替换，避免 XSS
+  const safeContent = escapeHtml(content)
+  return safeContent
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/`(.*?)`/g, '<code>$1</code>')
@@ -101,7 +107,7 @@ const formatMessage = (content: string): string => {
 const handleAvatarError = () => {
   avatarError.value = true
 }
-//复制消息，将消息复制到剪贴板
+
 const copyMessage = async () => {
   try {
     await navigator.clipboard.writeText(props.message.content)
@@ -110,14 +116,14 @@ const copyMessage = async () => {
     console.error('复制失败:', error)
   }
 }
-//点赞消息，将消息点赞
+
 const toggleLike = () => {
   isLiked.value = !isLiked.value
   emit('like', props.message)
 }
-//删除消息，将消息删除
+
 const deleteMessage = () => {
-  if (confirm('确定要删除这条消息吗？')) {
+  if (confirm('确定要删除这条消息吗？删除后无法恢复哦～')) {
     emit('delete', props.message)
   }
 }
@@ -126,19 +132,13 @@ const deleteMessage = () => {
 <style scoped>
 .chat-message {
   display: flex;
-  margin-bottom: 16px;
-  animation: messageSlideIn 0.3s ease-out;
+  margin-bottom: var(--space-lg);
+  animation: messageSlideIn 0.4s ease-out;
 }
 
 @keyframes messageSlideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .chat-message--user {
@@ -150,12 +150,15 @@ const deleteMessage = () => {
 }
 
 .message-avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
+  width: 44px;
+  height: 44px;
+  border-radius: var(--radius-full);
   overflow: hidden;
   flex-shrink: 0;
-  margin: 0 12px;
+  margin: 0 var(--space-md);
+  background: var(--color-bg-tertiary);
+  border: 2px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .message-avatar img {
@@ -176,8 +179,8 @@ const deleteMessage = () => {
 .message-header {
   display: flex;
   align-items: center;
-  margin-bottom: 4px;
-  gap: 8px;
+  margin-bottom: var(--space-sm);
+  gap: var(--space-sm);
 }
 
 .chat-message--user .message-header {
@@ -185,14 +188,14 @@ const deleteMessage = () => {
 }
 
 .message-sender {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 600;
-  color: #333;
+  color: var(--color-text-primary);
 }
 
 .message-time {
-  font-size: 12px;
-  color: #999;
+  font-size: 13px;
+  color: var(--color-text-muted);
 }
 
 .message-body {
@@ -200,28 +203,31 @@ const deleteMessage = () => {
 }
 
 .message-text {
-  background: #f8f9fa;
-  padding: 12px 16px;
-  border-radius: 12px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: #333;
+  padding: var(--space-md) var(--space-lg);
+  border-radius: var(--radius-lg);
+  font-size: 15px;
+  line-height: 1.75;
   word-wrap: break-word;
   word-break: break-word;
 }
 
+/* 用户消息 — 主色渐变 */
 .chat-message--user .message-text {
-  background: #007bff;
+  background: var(--color-primary-gradient);
   color: white;
+  box-shadow: var(--shadow-sm);
 }
 
+/* AI 消息 — 深色卡片 */
 .chat-message--assistant .message-text {
-  background: #f8f9fa;
-  color: #333;
+  background: var(--color-bg-elevated);
+  color: var(--color-text-primary);
+  border: 1.5px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .message-text :deep(code) {
-  background: rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.1);
   padding: 2px 4px;
   border-radius: 4px;
   font-family: 'Courier New', monospace;
@@ -232,14 +238,7 @@ const deleteMessage = () => {
   background: rgba(255, 255, 255, 0.2);
 }
 
-.message-text :deep(strong) {
-  font-weight: 600;
-}
-
-.message-text :deep(em) {
-  font-style: italic;
-}
-
+/* 操作按钮 */
 .message-actions {
   position: absolute;
   top: -8px;
@@ -247,7 +246,7 @@ const deleteMessage = () => {
   display: flex;
   gap: 4px;
   opacity: 0;
-  transition: opacity 0.2s;
+  transition: opacity var(--transition-fast);
 }
 
 .chat-message--user .message-actions {
@@ -263,43 +262,36 @@ const deleteMessage = () => {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border: none;
-  border-radius: 4px;
-  background: white;
-  color: #666;
+  border-radius: var(--radius-md);
+  background: var(--color-bg-secondary);
+  color: var(--color-text-secondary);
   cursor: pointer;
-  transition: all 0.2s;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: all var(--transition-base);
+  box-shadow: var(--shadow-sm);
 }
 
 .action-btn:hover {
-  background: #f8f9fa;
-  color: #333;
+  background: var(--color-bg-tertiary);
+  color: var(--color-text-primary);
+  transform: scale(1.1);
 }
 
 .copy-btn:hover {
-  background: #e3f2fd;
-  color: #1976d2;
+  color: var(--color-primary);
 }
 
-.like-btn:hover {
-  background: #fce4ec;
-  color: #c2185b;
-}
-
+.like-btn:hover,
 .like-btn.liked {
-  background: #fce4ec;
-  color: #c2185b;
+  color: #f43f5e;
 }
 
 .delete-btn:hover {
-  background: #ffebee;
-  color: #d32f2f;
+  color: var(--color-error);
 }
 
-/* 响应式设计 */
 @media (max-width: 768px) {
   .message-content {
     max-width: 85%;
@@ -308,11 +300,10 @@ const deleteMessage = () => {
   .message-avatar {
     width: 32px;
     height: 32px;
-    margin: 0 8px;
   }
 
   .message-text {
-    padding: 10px 12px;
+    padding: var(--space-sm);
     font-size: 13px;
   }
 }

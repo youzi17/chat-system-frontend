@@ -1,24 +1,24 @@
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+// composables/useChat.ts — 聊天业务逻辑组合式函数
+import { computed } from 'vue'
 import { useChatStore } from '@/stores/chat'
 import { useRoleStore } from '@/stores/roles'
-import { useAIConfigStore } from '@/stores/aiConfig'
 import type { SendMessageParams } from '@/types/chat'
 
-//使用store设计好的函数处理逻辑，实现每个组件的逻辑函数
-// 聊天组合式函数
 export function useChat() {
   const chatStore = useChatStore()
   const roleStore = useRoleStore()
-  const aiConfigStore = useAIConfigStore()
 
-  // 发送消息
+  /** 发送消息（自动使用当前角色的 roleKey） */
   const sendMessage = async (content: string) => {
     if (!content.trim()) return
+    if (!roleStore.currentRoleKey) {
+      console.error('未选择角色，无法发送消息')
+      return
+    }
 
     const params: SendMessageParams = {
       content: content.trim(),
-      sessionId: chatStore.currentSession?.id,
-      configId: roleStore.currentRole?.configId, // 使用角色关联的AI配置
+      roleKey: roleStore.currentRoleKey,
     }
 
     try {
@@ -28,22 +28,23 @@ export function useChat() {
     }
   }
 
-  // 创建新会话
+  /** 创建新会话（使用当前角色） */
   const createNewSession = (title?: string) => {
-    return chatStore.createSession(title)
+    if (!roleStore.currentRoleKey) return null
+    return chatStore.createSession(title, roleStore.currentRoleKey)
   }
 
-  // 选择会话
+  /** 选择会话 */
   const selectSession = (sessionId: string) => {
     chatStore.selectSession(sessionId)
   }
 
-  // 删除会话
+  /** 删除会话 */
   const deleteSession = (sessionId: string) => {
     chatStore.deleteSession(sessionId)
   }
 
-  // 清空当前会话
+  /** 清空当前会话 */
   const clearCurrentSession = () => {
     chatStore.clearCurrentSession()
   }
